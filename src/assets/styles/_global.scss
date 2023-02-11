@@ -1,37 +1,22 @@
 body {
-	font-family: 'Volkorn', Helvetica, Arial, sans-serif;
+	font: 16px/1.4 $font, serif;
+	color: var(--color-main);
 }
 
 #app {
 	padding-top: 64px;
 
-	@media (min-width: 768px) {
-		padding: 220px 0 261px;
+	@media (min-width: $media-md) {
+		padding: 210px 0 261px;
 	}
 }
 
 .container {
-	max-width: 960px;
+	max-width: 995px;
 	margin: 0 auto;
 	padding: 16px;
 }
 
-.app-header {
-	color: #282828;
-}
-
-.app-title {
-	font-size: 40px;
-	line-height: 48px;
-	margin-bottom: 15px;
-
-	@media (min-width: 768px) {
-		font-size: 50px;
-		line-height: 60px;
-	}
-}
-
-.app-subtitle {
-	font-size: 20px;
-	line-height: 1;
+.label {
+	cursor: pointer;
 }
