@@ -1,0 +1,14 @@
+{
+	"extends": [
+		"plugin:vue/base",
+		"plugin:vue/vue3-recommended",
+		"prettier"
+	],
+	"rules": {
+		"vue/no-unused-vars": "error",
+		"semi": [
+			"error",
+			"always"
+		]
+	}
+}
