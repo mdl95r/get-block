@@ -52,9 +52,9 @@
 </template>
 
 <script>
-import axios from 'axios';
 import GbField from '@/components/GbField.vue';
 import SwapIcon from '@/assets/icons/swap.svg?component';
+import { mapState, mapGetters, mapMutations, mapActions } from "vuex";
 
 export default {
 	name: "App",
@@ -65,38 +65,27 @@ export default {
 
 	data() {
 		return {
-			currensies: [],
-			selectedTicker: {
-				from: '',
-				fromName: '',
-				to: '',
-				toName: '',
-			},
-			minAmount: null,
-			fromValue: null,
-			toValue: '',
 			address: '',
-			isLoading: false,
-			isAllowedExchange: false,
-			apiError: false
 		};
 	},
 
 	computed: {
+		...mapState({
+			currensies: (state) => state.currensies,
+			isLoading: (state) => state.isLoading,
+			selectedTicker: (state) => state.selectedTicker,
+			fromValue: (state) => state.fromValue,
+			toValue: (state) => state.toValue,
+			minAmount: (state) => state.minAmount,
+			apiError: (state) => state.apiError
+		}),
+
+		...mapGetters({
+			isValid: "isValid"
+		}),
+
 		allowedToExchange() {
 			return this.address.length > 0;
-		},
-
-		isValid() {
-			return this.selectedTicker.from && this.selectedTicker.to;
-		},
-
-		pair() {
-			return `${this.selectedTicker.from}_${this.selectedTicker.to}`;
-		},
-
-		apiKey() {
-			return 'c9155859d90d239f909d2906233816b26cd8cf5ede44702d422667672b58b0cd';
 		},
 	},
 
@@ -111,11 +100,11 @@ export default {
 		},
 
 		fromValue(newVal) {
-			this.apiError = false;
+			this.$store.commit('setError', false);
 
 			if (newVal < this.minAmount) {
-				this.apiError = true;
-				this.toValue = '';
+				this.$store.commit('setError', true);
+				this.$store.commit('setToValue', '');
 				return;
 			}
 
@@ -132,54 +121,16 @@ export default {
 	},
 
 	methods: {
-		async fetchAllCurrencies() {
-			this.isLoading = true;
+		...mapActions({
+			fetchAllCurrencies: "fetchAllCurrencies",
+			getMinAmount: "getMinAmount",
+			esimatedValue: "esimatedValue",
+		}),
 
-			try {
-				const { data } = await axios.get('https://api.changenow.io/v1/currencies?active=true&fixedRate=true');
-				const newArray = data.slice(0, 50);
-
-				this.currensies = newArray;
-			} catch (error) {
-				this.apiError = true;
-				console.log(error);
-			} finally {
-				this.isLoading = false;
-			}
-		},
-
-		async getMinAmount() {
-			try {
-				const { data } = await axios.get(`https://api.changenow.io/v1/min-amount/${this.pair}?api_key=${this.apiKey}`);
-
-				if (!data.minAmount) {
-					this.apiError = true;
-					return;
-				}
-
-				this.fromValue = data.minAmount;
-				this.minAmount = data.minAmount;
-
-			} catch (error) {
-				this.apiError = true;
-			}
-		},
-
-		async esimatedValue() {
-
-			try {
-				const { data } = await axios.get(`https://api.changenow.io/v1/exchange-amount/${this.fromValue}/${this.pair}?api_key=${this.apiKey}`);
-
-				if (!data.estimatedAmount) {
-					this.apiError = true;
-					return;
-				}
-
-				this.toValue = data.estimatedAmount;
-			} catch (error) {
-				this.apiError = true;
-			}
-		},
+		...mapMutations([
+			'setError',
+			'setToValue',
+		]),
 
 		selectTicker({ ticker, name }, currencyType) {
 			this.selectedTicker[currencyType] = ticker;
@@ -197,7 +148,7 @@ export default {
 		},
 
 		inputHandler(amount, currencyType) {
-			this[`${currencyType}Value`] = amount;
+			this.$store.commit(`${currencyType}Value`, amount);
 		}
 	},
 };
