@@ -5,71 +5,201 @@
       <p class="app-subtitle">Exchange fast and easy</p>
     </header>
 
-    <div class="changer-pairs">
-      <SelectBox
-        :options="options"
-        :currencyType="'from'"
-        :currencyValue="fromValue"
-      />
+		<template v-if="!isLoading">
+			<div class="changer-pairs">
+				<gb-field
+					v-model="fromValue"
+					:currensies="currensies"
+					:currency-type="'from'"
+					:selected-ticker="selectedTicker.from"
+					@select-ticker="selectTicker"
+					@input-change="inputHandler"
+				/>
 
-      <gb-button className="swapper gb-button_no-fill">Exc</gb-button>
+				<button class="swapper button button_no-fill" @click="swapCoins">
+					<swap-icon width="24" height="24"/>
+				</button>
 
-      <SelectBox
-        :options="options"
-        :currencyType="'to'"
-        :readOnly="true"
-        :currencyValue="toCurrencyValue"
-      />
-    </div>
+				<gb-field
+					v-model="toValue"
+					:currensies="currensies"
+					:currency-type="'to'"
+					:selected-ticker="selectedTicker.to"
+					:api-error="apiError"
+					@select-ticker="selectTicker"
+					@input-change="inputHandler"
+				/>
+			</div>
 
-    <div class="exchange">
-      <label for="exchange" class="label"
-        >Your {{ toCurrency.name || "wallet" }} address</label
-      >
-      <gb-input
-        placeholder="Выберите значение"
-        id="exchange"
-        className="exchange-input"
-      />
-      <gb-button className="gb-button_primary exchange-button"
-        >Exchange</gb-button
-      >
-    </div>
+			<div class="exchange">
+				<label for="exchange" class="label">Your {{ selectedTicker.fromName || 'wallet' }} address</label>
+				<input
+					id="exchange"
+					v-model="address"
+					class="input exchange-input"
+					type="text"
+				/>
+				<button type="button" class="button_primary exchange-button" :disabled="!allowedToExchange" :class="{ 'pair-disabled': apiError }">Exchange</button>
+			</div>
+		</template>
+
+		<template v-else>
+			<div class="loader-wrap">
+				<div class="loader"></div>
+			</div>
+		</template>
   </div>
 </template>
 
 <script>
-import { mapState } from "vuex";
-import SelectBox from "./components/select-box/SelectBox.vue";
+import axios from 'axios';
+import GbField from '@/components/GbField.vue';
+import SwapIcon from '@/assets/icons/swap.svg?component';
 
 export default {
-  name: "App",
-  components: {
-    SelectBox,
-  },
+	name: "App",
+	components: {
+		GbField,
+		SwapIcon,
+	},
 
-  data() {
-    return {
-      fromCurrencyValue: null,
-      fromCurrency: {},
-      toCurrencyValue: null,
-      toCurrency: {},
-      minimalExchange: 0,
-      estimatedValue: 0,
-    };
-  },
+	data() {
+		return {
+			currensies: [],
+			selectedTicker: {
+				from: '',
+				fromName: '',
+				to: '',
+				toName: '',
+			},
+			minAmount: null,
+			fromValue: null,
+			toValue: '',
+			address: '',
+			isLoading: false,
+			isAllowedExchange: false,
+			apiError: false
+		};
+	},
 
-  mounted() {
-    this.$store.dispatch("getAllCurrencies");
-  },
+	computed: {
+		allowedToExchange() {
+			return this.address.length > 0;
+		},
 
-  computed: {
-    ...mapState(["options"]),
-  },
+		isValid() {
+			return this.selectedTicker.from && this.selectedTicker.to;
+		},
 
-  methods: {},
+		pair() {
+			return `${this.selectedTicker.from}_${this.selectedTicker.to}`;
+		},
 
-  watch: {},
+		apiKey() {
+			return 'c9155859d90d239f909d2906233816b26cd8cf5ede44702d422667672b58b0cd';
+		},
+	},
+
+	watch: {
+		selectedTicker: {
+			deep: true,
+			handler(val) {
+				if (val.from && val.to) {
+					this.getMinAmount();
+				}
+			},
+		},
+
+		fromValue(newVal) {
+			this.apiError = false;
+
+			if (newVal < this.minAmount) {
+				this.apiError = true;
+				this.toValue = '';
+				return;
+			}
+
+			if (!this.isValid) {
+				return;
+			}
+
+			this.esimatedValue();
+		}
+	},
+
+	mounted() {
+		this.fetchAllCurrencies();
+	},
+
+	methods: {
+		async fetchAllCurrencies() {
+			this.isLoading = true;
+
+			try {
+				const { data } = await axios.get('https://api.changenow.io/v1/currencies?active=true&fixedRate=true');
+				const newArray = data.slice(0, 50);
+
+				this.currensies = newArray;
+			} catch (error) {
+				this.apiError = true;
+				console.log(error);
+			} finally {
+				this.isLoading = false;
+			}
+		},
+
+		async getMinAmount() {
+			try {
+				const { data } = await axios.get(`https://api.changenow.io/v1/min-amount/${this.pair}?api_key=${this.apiKey}`);
+
+				if (!data.minAmount) {
+					this.apiError = true;
+					return;
+				}
+
+				this.fromValue = data.minAmount;
+				this.minAmount = data.minAmount;
+
+			} catch (error) {
+				this.apiError = true;
+			}
+		},
+
+		async esimatedValue() {
+
+			try {
+				const { data } = await axios.get(`https://api.changenow.io/v1/exchange-amount/${this.fromValue}/${this.pair}?api_key=${this.apiKey}`);
+
+				if (!data.estimatedAmount) {
+					this.apiError = true;
+					return;
+				}
+
+				this.toValue = data.estimatedAmount;
+			} catch (error) {
+				this.apiError = true;
+			}
+		},
+
+		selectTicker({ ticker, name }, currencyType) {
+			this.selectedTicker[currencyType] = ticker;
+			this.selectedTicker[`${currencyType}Name`] = name;
+		},
+
+		swapCoins() {
+			const { from, fromName, to, toName } = this.selectedTicker;
+
+			this.selectedTicker.from = to;
+			this.selectedTicker.to = from;
+
+			this.selectedTicker.fromName = toName;
+			this.selectedTicker.toName = fromName;
+		},
+
+		inputHandler(amount, currencyType) {
+			this[`${currencyType}Value`] = amount;
+		}
+	},
 };
 </script>
 
@@ -77,55 +207,170 @@ export default {
 @import "./assets/styles/main.scss";
 
 .app-header {
-  margin-bottom: 60px;
+	margin-bottom: 50px;
+}
+
+.app-title {
+	font-size: 40px;
+	line-height: 1.2;
+	margin-bottom: 15px;
+
+	@media (min-width: $media-md) {
+		font-size: 50px;
+	}
+}
+
+.app-subtitle {
+	font-size: 20px;
+	line-height: 1;
 }
 
 .changer-pairs {
-  display: grid;
-  grid-template-columns: 1fr 40px 1fr;
-  gap: 0 15px;
+	display: grid;
+	gap: 0 15px;
+
+	@media (min-width: $media-md) {
+		grid-template-columns: 1fr 40px 1fr;
+	}
 }
 
 .exchange {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 8px 32px;
-  margin-top: 32px;
+	display: grid;
+	gap: 16px 32px;
+	margin-top: 39px;
+
+	.label {
+		@media (min-width: $media-md) {
+			gap: 5px 27px;
+			grid-row: 1 / 2;
+			grid-column: 1 / 12;
+		}
+	}
+
+	@media (min-width: $media-md) {
+		grid-template-columns: repeat(12, 1fr);
+	}
 }
 
 .exchange-input {
-  grid-row: 2 /3;
+
+	@media (min-width: $media-md) {
+		grid-row: 2 /3;
+		grid-column: 1 / 12;
+	}
 }
 
 .exchange-button {
-  grid-row: 2 /3;
+
+	@media (min-width: $media-md) {
+		grid-row: 2 /3;
+	}
 }
 
-.label {
-  font-size: 16px;
-  line-height: 23px;
-  color: #282828;
+.currency-code {
+	margin-left: 12px;
 }
 
-.gb-select {
-  display: none;
-  width: 100%;
-  background: #f6f7f8;
-  z-index: 100;
-
-  &_open {
-    display: block;
-    border: 1px solid #c1d9e6;
-    border-radius: 5px;
-  }
+.currency {
+	margin-left: 12px;
+	color: var(--color-light-blue);
 }
 
-.gb-currency-code {
-  margin-left: 12px;
+.swapper {
+	align-self: center;
+
+	@media (max-width: $media-md-1) {
+		margin-left: auto;
+	}
 }
 
-.gb-currency {
-  margin-left: 12px;
-  color: #80a2b6;
+.button {
+	&_no-fill {
+		width: 40px;
+		height: 40px;
+	}
+
+	&_primary {
+		position: relative;
+		padding: 15px 59px;
+		background: var(--color-blue);
+		border-radius: 5px;
+		font-weight: 700;
+		font-size: 16px;
+		line-height: 19px;
+		letter-spacing: 0.03em;
+		text-transform: uppercase;
+		color: var(--color-white);
+
+		&:hover {
+			background: var(--color-blue-darky);
+			transition: 0.3s;
+		}
+
+		&[disabled] {
+			opacity: .6;
+		}
+	}
+}
+
+.pair-disabled {
+	background: var(--color-blue-disabled);
+	cursor: not-allowed;
+
+	&[disabled] {
+		opacity: 1;
+	}
+
+	&:before {
+		position: absolute;
+		top: calc(100% + 8px);
+		content: "This pair is disabled now";
+		color: var(--color-error);
+		text-align: center;
+		font-size: 16px;
+		line-height: 23px;
+		width: 100%;
+		left: 0;
+	}
+}
+
+.input {
+	background: var(--color-gray);
+	border: 1px solid var(--color-border-gray);
+	height: 50px;
+	padding: 14px 16px;
+	font-size: 16px;
+	line-height: 23px;
+	width: 100%;
+
+	&_no-fill {
+		background: transparent;
+		border: none;
+	}
+
+	&[disabled] {
+		cursor: not-allowed;
+	}
+
+	&[type="number"] {
+		-moz-appearance: textfield;
+
+		&::-webkit-inner-spin-button,
+		&::-webkit-outer-spin-button {
+			-webkit-appearance: none;
+			margin: 0;
+		}
+	}
+
+	&[readonly] {
+		cursor: not-allowed;
+	}
+}
+
+.loader-wrap {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 100px;
 }
 </style>

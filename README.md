@@ -1,24 +1,36 @@
-# getblock
+Нужно реализовать виджет для создания обмена
 
-## Project setup
-```
-npm install
-```
+1. Из API (ниже) берется список всех валют (не использовать метод API get_all_pairs, делать виджет для всех возможных пар);
 
-### Compiles and hot-reloads for development
-```
-npm run serve
-```
+2. В виджете можно выбрать левую и правую валюты;
 
-### Compiles and minifies for production
-```
-npm run build
-```
+3. При выборе валют, выставлять в левом инпуте минимальную сумму обмена;
 
-### Lints and fixes files
-```
-npm run lint
-```
+4. В правый инпут считается и подставляется значение estimated для выбранных валют и суммы в левом инпуте;
 
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+5. Если сумма меньше, чем минимальная, то в правый инпут пишется прочерк и выводится ошибка;
+
+6. Если для estimated или для min для выбранных валют API возвращает null, выводить ошибку this pair is disabled now.
+
+7. Реализовать поиск
+
+
+API:
+
+https://documenter.getpostman.com/view/8180765/SVfTPnM8?version=latest#intro
+
+Требования по реализации и оформлению: 
+
+1.Из этого API использовать только методы (за искл. задачи поиска):
+
+      1.1. List of available currencies;
+
+      1.2. Minimal exchange amount;
+
+     1.3. Estimated exchange amount.
+
+2.Макет:https://www.figma.com/file/fzcnpN2Pm9YY8CIpWbP3NE/Frontend-Test?node-id=0%3A1
+
+3.Использовать шрифт Vollkorn;
+
+4.Поддержка — последние версии основных браузеров.
