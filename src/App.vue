@@ -70,19 +70,19 @@ export default {
 	},
 
 	computed: {
-		...mapState({
-			currensies: (state) => state.currensies,
-			isLoading: (state) => state.isLoading,
-			selectedTicker: (state) => state.selectedTicker,
-			fromValue: (state) => state.fromValue,
-			toValue: (state) => state.toValue,
-			minAmount: (state) => state.minAmount,
-			apiError: (state) => state.apiError
-		}),
+		...mapState([
+			'currensies',
+			'isLoading',
+			'selectedTicker',
+			'fromValue',
+			'toValue',
+			'minAmount',
+			'apiError'
+		]),
 
-		...mapGetters({
-			isValid: "isValid"
-		}),
+		...mapGetters([
+			'isValid'
+		]),
 
 		allowedToExchange() {
 			return this.address.length > 0;
@@ -100,11 +100,11 @@ export default {
 		},
 
 		fromValue(newVal) {
-			this.$store.commit('setError', false);
+			this.setError(false);
 
 			if (newVal < this.minAmount) {
-				this.$store.commit('setError', true);
-				this.$store.commit('setToValue', '');
+				this.setError(true);
+				this.setToValue('');
 				return;
 			}
 
@@ -121,11 +121,11 @@ export default {
 	},
 
 	methods: {
-		...mapActions({
-			fetchAllCurrencies: "fetchAllCurrencies",
-			getMinAmount: "getMinAmount",
-			esimatedValue: "esimatedValue",
-		}),
+		...mapActions([
+			'fetchAllCurrencies',
+			'getMinAmount',
+			'esimatedValue',
+		]),
 
 		...mapMutations([
 			'setError',
